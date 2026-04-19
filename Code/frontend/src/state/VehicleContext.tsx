@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { Vehicle, PricingStructure } from '../types/vehicle';
+import * as vehicleService from '../services/vehicleService';
 
 const defaultPricing: PricingStructure = {
   exShowroomPrice: 74216,
@@ -29,125 +30,157 @@ const defaultPricing: PricingStructure = {
   onRoadPrice: 86766,
 };
 
-// Initial dummy data based on App.tsx hardcoded values and phase-1.md
-const initialVehicles: Vehicle[] = [
-  {
-    id: 'v1',
-    brand: 'Honda',
-    model: 'Activa 6G',
-    category: 'Scooter',
-    launchYear: '2023',
-    description: 'The reliable family scooter.',
-    image: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&q=80&w=600',
-    mediaAssets: {
-      images: ['https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&q=80&w=600']
-    },
-    specs: {
-      engine: '109.51 cc',
-      maxPower: '5.73 kW @ 8000 rpm',
-      maxTorque: '8.90 Nm @ 5500 rpm',
-      transmission: 'CVT',
-      mileage: '60 kmpl',
-      fuelCapacity: '5.3 Liters',
-      length: '1833',
-      width: '697',
-      height: '1156',
-      wheelbase: '1260',
-      weight: '107 kg',
-      frontBrake: 'Drum 130mm',
-      rearBrake: 'Drum 130mm',
-      frontTyre: '90/90-12 54J',
-      rearTyre: '90/100-10 53J',
-      frontSuspension: 'Telescopic',
-      rearSuspension: '3-Step Adjustable',
-      features: ['LED Headlamp', 'Smart Key'],
-      warranty: '3 Years Standard',
-    },
-    variants: [
-      {
-        id: 'v1-deluxe',
-        name: 'Deluxe',
-        brakeType: 'Drum',
-        wheelType: 'Steel',
-        connectedFeatures: false,
-        pricing: defaultPricing,
-        colors: [
-          { name: 'Pearl Precious White', hexCode: '#FFFFFF', status: 'In Stock', stockQuantity: 5 },
-          { name: 'Matte Axis Grey', hexCode: '#555555', status: 'In Stock', stockQuantity: 2 },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'v2',
-    brand: 'Honda',
-    model: 'SP 125',
-    category: 'Motorcycle',
-    image: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&q=80&w=600',
-    specs: { mileage: '65 kmpl', engine: '124 cc', weight: '116 kg', features: ['LED Lights', 'CBS', 'Digital Console'] },
-    variants: [
-      {
-        id: 'v2-disc',
-        name: 'Disc',
-        brakeType: 'Disc',
-        wheelType: 'Alloy',
-        pricing: { ...defaultPricing, exShowroomPrice: 86017, onRoadPrice: 98017 },
-        colors: [
-          { name: 'Striking Green', hexCode: '#00FF00', status: 'Coming Soon', stockQuantity: 0 },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'v3',
-    brand: 'Honda',
-    model: 'Shine 100',
-    category: 'Motorcycle',
-    image: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&q=80&w=600',
-    specs: { mileage: '70 kmpl', engine: '100 cc', weight: '99 kg', features: ['CBS'] },
-    variants: [
-      {
-        id: 'v3-std',
-        name: 'Standard',
-        pricing: { ...defaultPricing, exShowroomPrice: 64900, onRoadPrice: 76900 },
-        colors: [
-           { name: 'Red', hexCode: '#FF0000', status: 'In Stock', stockQuantity: 10 },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'v4',
-    brand: 'Honda',
-    model: 'Unicorn',
-    category: 'Motorcycle',
-    image: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&q=80&w=600',
-    specs: { mileage: '55 kmpl', engine: '162 cc', weight: '140 kg', features: ['ABS', 'LED Lights'] },
-    variants: [
-      {
-        id: 'v4-std',
-        name: 'Standard',
-        pricing: { ...defaultPricing, exShowroomPrice: 109126, onRoadPrice: 121126 },
-        colors: [
-           { name: 'Black', hexCode: '#000000', status: 'In Stock', stockQuantity: 3 },
-        ],
-      },
-    ],
-  },
-];
-
 interface VehicleContextType {
   vehicles: Vehicle[];
+  isLoading: boolean;
+  error: string | null;
   addVehicle: (vehicle: Omit<Vehicle, 'id'>) => void;
   updateVehicle: (id: string, vehicle: Partial<Vehicle>) => void;
   deleteVehicle: (id: string) => void;
   decrementStock: (vehicleId: string, variantId: string, colorName: string) => void;
+  refreshVehicles: () => Promise<void>;
 }
 
 const VehicleContext = createContext<VehicleContextType | undefined>(undefined);
 
 export function VehicleProvider({ children }: { children: ReactNode }) {
-  const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]); // Start with empty array - load from backend
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch vehicles from backend on mount
+  useEffect(() => {
+    let isMounted = true;
+    
+    const initializeVehicles = async () => {
+      // Wait for auth to be ready before loading vehicles
+      let authReady = false;
+      let attempts = 0;
+      
+      while (!authReady && attempts < 10 && isMounted) {
+        try {
+          const { supabase } = await import('../config/supabase');
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            authReady = true;
+            console.log('🚗 [VehicleContext] Auth is ready, proceeding with vehicles load');
+          } else {
+            attempts++;
+            console.log(`🚗 [VehicleContext] Waiting for auth... attempt ${attempts}/10`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        } catch (error) {
+          console.error('🚗 [VehicleContext] Error checking auth:', error);
+          break;
+        }
+      }
+      
+      if (authReady && isMounted) {
+        await loadVehicles();
+      } else if (isMounted) {
+        console.warn('🚗 [VehicleContext] Auth not ready, setting fallback vehicles');
+        setVehicles([]);
+        setError('Authentication not ready. Please refresh the page.');
+        setIsLoading(false);
+      }
+    };
+
+    initializeVehicles();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const loadVehicles = async () => {
+    console.log('🚗 [VehicleContext] Loading vehicles from backend...');
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await vehicleService.listVehicles({ isActive: true });
+      
+      if (result.success && result.vehicles) {
+        console.log('🚗 [VehicleContext] Vehicles loaded from backend:', result.vehicles.length);
+        
+        if (result.vehicles.length > 0) {
+          // Simplified mapping - avoid additional API calls for now
+          const mappedVehicles: Vehicle[] = result.vehicles.map((backendVehicle: any) => ({
+            id: backendVehicle.vehicleId,
+            brand: backendVehicle.brand,
+            model: backendVehicle.name,
+            category: backendVehicle.category,
+            launchYear: new Date(backendVehicle.createdAt).getFullYear().toString(),
+            description: backendVehicle.description || 'No description available',
+            image: backendVehicle.imageUrl || 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&q=80&w=600',
+            mediaAssets: {
+              images: backendVehicle.imageUrl ? [backendVehicle.imageUrl] : []
+            },
+            specs: {
+              engine: 'N/A',
+              maxPower: 'N/A',
+              maxTorque: 'N/A',
+              transmission: 'N/A',
+              mileage: 'N/A',
+              fuelCapacity: 'N/A',
+              length: 'N/A',
+              width: 'N/A',
+              height: 'N/A',
+              wheelbase: 'N/A',
+              weight: 'N/A',
+              frontBrake: 'N/A',
+              rearBrake: 'N/A',
+              frontTyre: 'N/A',
+              rearTyre: 'N/A',
+              frontSuspension: 'N/A',
+              rearSuspension: 'N/A',
+              features: [],
+              warranty: 'N/A'
+            },
+            variants: [{
+              id: 'default',
+              name: 'Standard',
+              brakeType: 'N/A',
+              wheelType: 'N/A',
+              connectedFeatures: false,
+              pricing: {
+                ...defaultPricing,
+                exShowroomPrice: backendVehicle.basePrice || 74216,
+                onRoadPrice: (backendVehicle.basePrice || 74216) + 12000
+              },
+              colors: [{ 
+                name: 'Default', 
+                hexCode: '#FFFFFF', 
+                status: 'In Stock' as const, 
+                stockQuantity: 10 
+              }]
+            }]
+          }));
+          
+          console.log('🚗 [VehicleContext] Vehicles mapped successfully:', mappedVehicles.length);
+          setVehicles(mappedVehicles);
+        } else {
+          console.log('🚗 [VehicleContext] No vehicles found in backend');
+          setVehicles([]);
+          setError('No vehicles found');
+        }
+      } else {
+        console.warn('🚗 [VehicleContext] Failed to load vehicles:', result.error?.message);
+        setError(result.error?.message || 'Failed to load vehicles from backend');
+        setVehicles([]);
+      }
+    } catch (err: any) {
+      console.error('🚗 [VehicleContext] Error loading vehicles:', err);
+      setError(err.message || 'Failed to load vehicles');
+      setVehicles([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const refreshVehicles = async () => {
+    await loadVehicles();
+  };
 
   const addVehicle = (vehicle: Omit<Vehicle, 'id'>) => {
     const newVehicle = {
@@ -189,7 +222,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <VehicleContext.Provider value={{ vehicles, addVehicle, updateVehicle, deleteVehicle, decrementStock }}>
+    <VehicleContext.Provider value={{ vehicles, isLoading, error, addVehicle, updateVehicle, deleteVehicle, decrementStock, refreshVehicles }}>
       {children}
     </VehicleContext.Provider>
   );

@@ -7,9 +7,10 @@ import type { BookingStatus, Booking } from '../../types/booking';
 import { BookingSummaryTemplate } from '../../components/admin/DocumentTemplates';
 import FinalSalesForm from '../../components/Sales/FinalSalesForm';
 import DocumentUploadSection from '../../components/Sales/DocumentUploadSection';
+import BookingDebug from '../../components/debug/BookingDebug';
 
 export default function BookingManagement() {
-  const { bookings, updateBookingStatus, updateBookingSale } = useBookings();
+  const { bookings, isLoading, error, updateBookingStatus, updateBookingSale, refreshBookings } = useBookings();
   const { vehicles } = useVehicles();
   const navigate = useNavigate();
   
@@ -28,6 +29,39 @@ export default function BookingManagement() {
   // Modal/Detail State
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showPrintView, setShowPrintView] = useState(false);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-[var(--text-secondary)] text-sm">Loading bookings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Failed to Load Bookings</h2>
+          <p className="text-[var(--text-secondary)] mb-4">{error}</p>
+          <button 
+            onClick={() => refreshBookings()} 
+            className="btn-primary px-6 py-2"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
   const [showFinalSales, setShowFinalSales] = useState(false);
 
   const getStatusBadgeColor = (status: BookingStatus) => {
@@ -292,7 +326,13 @@ export default function BookingManagement() {
                     <div className="flex flex-col items-start gap-2">
                       <select 
                         value={bk.status}
-                        onChange={(e) => updateBookingStatus(bk.id, e.target.value as BookingStatus)}
+                        onChange={async (e) => {
+                          try {
+                            await updateBookingStatus(bk.id, e.target.value as BookingStatus);
+                          } catch (error) {
+                            console.error('Failed to update booking status:', error);
+                          }
+                        }}
                         className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border border-transparent appearance-none cursor-pointer focus:ring-2 focus:ring-offset-1 focus:ring-slate-300 focus:outline-none transition-all ${getStatusBadgeColor(bk.status)}`}
                       >
                          <option value="Pending">Pending (Dep.)</option>
@@ -495,6 +535,9 @@ export default function BookingManagement() {
           }}
         />
       )}
+      
+      {/* Debug component - remove in production */}
+      <BookingDebug />
     </div>
   );
 }

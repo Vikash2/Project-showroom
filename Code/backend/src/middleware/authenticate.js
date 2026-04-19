@@ -1,7 +1,7 @@
-const { auth } = require("../config/firebase");
+const { supabase } = require("../config/supabase");
 
 /**
- * Authentication middleware - verifies Firebase ID token
+ * Authentication middleware - verifies Supabase JWT token
  * Attaches decoded user info to req.user
  */
 async function authenticate(req, res, next) {
@@ -18,29 +18,41 @@ async function authenticate(req, res, next) {
     const token = authHeader.split("Bearer ")[1];
 
     try {
-      // Verify the Firebase ID token
-      const decodedToken = await auth.verifyIdToken(token);
+      // Verify the Supabase JWT token
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
       
-      let role = decodedToken.role;
-      let showroomId = decodedToken.showroomId;
-
-      // Fallback to RTDB if claims are missing (useful for initial setup or if SDK is blocked)
-      if (!role) {
-        const { db } = require("../config/firebase");
-        const userSnap = await db.ref(`users/${decodedToken.uid}`).once("value");
-        if (userSnap.exists()) {
-          const userData = userSnap.val();
-          role = userData.role;
-          showroomId = userData.showroomId;
-        }
+      if (authError || !user) {
+        console.error("Token verification failed:", authError?.message);
+        return res.status(401).json({ 
+          error: "Invalid or expired token",
+          code: "AUTH_TOKEN_INVALID" 
+        });
       }
 
-      // Attach user info to request
+      // Get user profile from database to get role and showroom info
+      const { data: userData, error: dbError } = await supabase
+        .from("users")
+        .select("id, name, email, mobile, role, showroom_id")
+        .eq("id", user.id)
+        .single();
+
+      if (dbError || !userData) {
+        console.error("User profile not found:", dbError?.message);
+        return res.status(401).json({ 
+          error: "User profile not found",
+          code: "USER_NOT_FOUND" 
+        });
+      }
+
+      // Attach user info to request (using uid for backward compatibility)
       req.user = {
-        uid: decodedToken.uid,
-        email: decodedToken.email,
-        role: role || "Sales Executive",
-        showroomId: showroomId || null,
+        uid: userData.id,
+        id: userData.id,
+        email: userData.email,
+        name: userData.name,
+        mobile: userData.mobile,
+        role: userData.role || "Sales Executive",
+        showroomId: userData.showroom_id || null,
       };
 
       next();

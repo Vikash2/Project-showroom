@@ -43,11 +43,16 @@ export async function listBookings(filters?: {
   showroomId?: string;
 }) {
   try {
+    console.log('[bookingService] Listing bookings with filters:', filters);
+    
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
     if (filters?.showroomId) params.append('showroomId', filters.showroomId);
 
     const response = await api.get(`/api/bookings?${params.toString()}`);
+    
+    console.log('[bookingService] Bookings response:', response.data);
+    
     return {
       success: true,
       bookings: response.data.bookings,
@@ -55,11 +60,27 @@ export async function listBookings(filters?: {
     };
   } catch (error: any) {
     console.error('[bookingService] List bookings error:', error);
+    
+    // Handle specific error cases
+    let errorMessage = 'Failed to list bookings';
+    let errorCode = 'LIST_BOOKINGS_ERROR';
+    
+    if (error.code === 'NETWORK_ERROR') {
+      errorMessage = 'Unable to connect to server. Please check your internet connection.';
+      errorCode = 'NETWORK_ERROR';
+    } else if (error.code === 'AUTH_TOKEN_MISSING') {
+      errorMessage = 'Authentication required. Please log in again.';
+      errorCode = 'AUTH_TOKEN_MISSING';
+    } else if (error.message) {
+      errorMessage = error.message;
+      errorCode = error.code || 'API_ERROR';
+    }
+    
     return {
       success: false,
       error: {
-        code: error.code || 'LIST_BOOKINGS_ERROR',
-        message: error.message || 'Failed to list bookings',
+        code: errorCode,
+        message: errorMessage,
       },
     };
   }

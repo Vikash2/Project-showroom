@@ -1,4 +1,4 @@
-import type { Booking } from '../types/booking';
+import type { Booking, BookingStatus } from '../types/booking';
 
 /**
  * Check if a sale is locked and cannot be edited
@@ -10,7 +10,7 @@ export function isSaleLocked(booking: Booking): boolean {
   }
 
   // Locked if in final stages
-  const lockedStatuses = ['Payment Complete', 'Delivered', 'Ready for Payment'];
+  const lockedStatuses: BookingStatus[] = ['Payment Complete', 'Delivered', 'Ready for Delivery'];
   if (lockedStatuses.includes(booking.status)) {
     return true;
   }
@@ -24,11 +24,6 @@ export function isSaleLocked(booking: Booking): boolean {
 export function canTransferToCashier(booking: Booking): boolean {
   // Must be finalized
   if (booking.status !== 'Sales Finalized') {
-    return false;
-  }
-
-  // Must not be already transferred
-  if (booking.status === 'Ready for Payment' || booking.status === 'Payment Complete') {
     return false;
   }
 
@@ -60,10 +55,12 @@ export function getSalesStatusMessage(booking: Booking): string {
       return 'Ready for sales processing';
     case 'Sales Finalized':
       return 'Sales finalized - Ready to transfer to cashier';
-    case 'Ready for Payment':
+    case 'Payment Pending':
       return 'Transferred to cashier - Awaiting payment';
     case 'Payment Complete':
       return 'Payment completed - Ready for delivery';
+    case 'Ready for Delivery':
+      return 'Ready for vehicle delivery';
     case 'Delivered':
       return 'Vehicle delivered';
     case 'Pending Approval':
@@ -84,10 +81,12 @@ export function getStatusColorClass(status: string): string {
       return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
     case 'Sales Finalized':
       return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
-    case 'Ready for Payment':
+    case 'Payment Pending':
       return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
     case 'Payment Complete':
       return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300';
+    case 'Ready for Delivery':
+      return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300';
     case 'Delivered':
       return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300';
     case 'Pending Approval':

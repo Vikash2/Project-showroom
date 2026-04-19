@@ -1,24 +1,26 @@
-const { db } = require("../config/firebase");
-
-const SHOWROOMS_REF = "showrooms";
+const { supabase } = require("../config/supabase");
 
 /**
  * Create a new showroom
  */
 async function createShowroom(showroomData) {
   try {
-    const ref = db.ref(SHOWROOMS_REF).push();
-    const showroomId = ref.key;
+    const { data, error } = await supabase
+      .from("showrooms")
+      .insert({
+        ...showroomData,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-    const showroom = {
-      showroomId,
-      ...showroomData,
-      createdAt: Date.now(),
-      isActive: showroomData.isActive !== undefined ? showroomData.isActive : true,
-    };
+    if (error) {
+      throw error;
+    }
 
-    await ref.set(showroom);
-    return showroom;
+    return data;
   } catch (error) {
     console.error("Create showroom error:", error);
     throw error;
@@ -26,29 +28,27 @@ async function createShowroom(showroomData) {
 }
 
 /**
- * List all showrooms
+ * List all showrooms with optional filters
  */
 async function listShowrooms(filters = {}) {
   try {
-    const snap = await db.ref(SHOWROOMS_REF).once("value");
-    
-    if (!snap.exists()) {
-      return [];
+    let query = supabase
+      .from("showrooms")
+      .select("*")
+      .eq("is_active", true);
+
+    // Filter by location if provided
+    if (filters.location) {
+      query = query.eq("location", filters.location);
     }
 
-    const showrooms = [];
-    snap.forEach((childSnap) => {
-      const showroom = { showroomId: childSnap.key, ...childSnap.val() };
-      
-      // Apply filters
-      if (filters.isActive !== undefined && showroom.isActive !== filters.isActive) {
-        return;
-      }
-      
-      showrooms.push(showroom);
-    });
+    const { data, error } = await query.order("created_at", { ascending: false });
 
-    return showrooms;
+    if (error) {
+      throw error;
+    }
+
+    return data || [];
   } catch (error) {
     console.error("List showrooms error:", error);
     throw error;
@@ -60,13 +60,21 @@ async function listShowrooms(filters = {}) {
  */
 async function getShowroom(showroomId) {
   try {
-    const snap = await db.ref(`${SHOWROOMS_REF}/${showroomId}`).once("value");
-    
-    if (!snap.exists()) {
-      return null;
+    const { data, error } = await supabase
+      .from("showrooms")
+      .select("*")
+      .eq("id", showroomId)
+      .eq("is_active", true)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        return null; // Showroom not found
+      }
+      throw error;
     }
 
-    return { showroomId, ...snap.val() };
+    return data;
   } catch (error) {
     console.error("Get showroom error:", error);
     throw error;
@@ -78,9 +86,20 @@ async function getShowroom(showroomId) {
  */
 async function updateShowroom(showroomId, updates) {
   try {
-    updates.updatedAt = Date.now();
-    await db.ref(`${SHOWROOMS_REF}/${showroomId}`).update(updates);
-    return await getShowroom(showroomId);
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from("showrooms")
+      .update(updates)
+      .eq("id", showroomId)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
   } catch (error) {
     console.error("Update showroom error:", error);
     throw error;
@@ -88,14 +107,22 @@ async function updateShowroom(showroomId, updates) {
 }
 
 /**
- * Delete showroom (soft delete)
+ * Soft delete showroom
  */
 async function deleteShowroom(showroomId) {
   try {
-    await db.ref(`${SHOWROOMS_REF}/${showroomId}`).update({
-      isActive: false,
-      deletedAt: Date.now(),
-    });
+    const { error } = await supabase
+      .from("showrooms")
+      .update({
+        is_active: false,
+        deleted_at: new Date().toISOString(),
+      })
+      .eq("id", showroomId);
+
+    if (error) {
+      throw error;
+    }
+
     return { success: true, message: "Showroom deleted successfully" };
   } catch (error) {
     console.error("Delete showroom error:", error);

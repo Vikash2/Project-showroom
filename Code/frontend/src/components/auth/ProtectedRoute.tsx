@@ -9,11 +9,12 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, isAuthenticated, isLoading, hasRole } = useAuth();
+  const { isAuthenticated, isLoading, isInitializing, hasRole } = useAuth();
   const { activeShowroom } = useShowroom();
   const location = useLocation();
 
-  if (isLoading) {
+  // Show loading during initialization or login
+  if (isInitializing || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)] transition-colors duration-500">
         <div 

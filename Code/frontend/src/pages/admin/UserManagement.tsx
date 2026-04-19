@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, Edit2, Trash2, Shield, X, Save } from 'lucide-react';
+import { Users, Plus, Trash2, Shield, X, Save } from 'lucide-react';
 import { useAuth } from '../../state/AuthContext';
 import { useShowroom } from '../../state/ShowroomContext';
 import toast from 'react-hot-toast';
 import * as userService from '../../services/userService';
+import * as showroomService from '../../services/showroomService';
 import type { User, Role } from '../../types/auth';
 import type { CreateUserPayload } from '../../services/userService';
+import type { Showroom } from '../../types/showroom';
 
 export default function UserManagement() {
   const { user: currentUser, hasRole } = useAuth();
-  const { showrooms } = useShowroom();
+  const { activeShowroom: _ } = useShowroom();
   const [users, setUsers] = useState<User[]>([]);
+  const [showrooms, setShowrooms] = useState<Showroom[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,10 +36,30 @@ export default function UserManagement() {
     'Documentation Officer',
   ];
 
-  // Load users on mount
+  // Load users and showrooms on mount
   useEffect(() => {
     loadUsers();
+    loadShowrooms();
   }, []);
+
+  const loadShowrooms = async () => {
+    const result = await showroomService.listShowrooms({ isActive: true });
+    if (result.success && result.showrooms) {
+      const mappedShowrooms: Showroom[] = result.showrooms.map((s: any) => ({
+        showroomId: s.showroomId || '',
+        name: s.name || '',
+        brand: s.brand || '',
+        tagline: s.tagline || '',
+        state: s.state || '',
+        gstNumber: s.gstNumber || '',
+        contact: s.contact || { phone: '', email: '', whatsapp: '' },
+        address: s.address || { street: '', city: '', state: '', pincode: '', mapLink: '', coordinates: { lat: 0, lng: 0 } },
+        branding: s.branding || { primaryColor: '#DC2626', secondaryColor: '#991B1B', logoUrl: '' },
+        workingHours: s.workingHours || { weekdays: '', sunday: '' },
+      }));
+      setShowrooms(mappedShowrooms);
+    }
+  };
 
   const loadUsers = async () => {
     setIsLoading(true);
@@ -335,7 +358,7 @@ export default function UserManagement() {
                   className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                   required
                 >
-                  {roles.map((role) => (
+                  {roles.map((role: Role) => (
                     <option key={role} value={role}>
                       {role}
                     </option>
@@ -356,7 +379,7 @@ export default function UserManagement() {
                     required
                   >
                     <option value="">Select Showroom</option>
-                    {showrooms.map((showroom) => (
+                    {showrooms.map((showroom: Showroom) => (
                       <option key={showroom.showroomId} value={showroom.showroomId}>
                         {showroom.name}
                       </option>

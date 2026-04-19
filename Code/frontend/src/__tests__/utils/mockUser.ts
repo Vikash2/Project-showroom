@@ -116,6 +116,7 @@ export function getRoleDisplayName(role: Role): string {
     'Sales Executive': 'Sales Executive',
     'Accountant': 'Accountant',
     'Documentation Officer': 'Documentation Officer',
+    'Cashier': 'Cashier',
     'Customer': 'Customer',
   };
   return displayNames[role];

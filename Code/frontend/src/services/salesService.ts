@@ -1,6 +1,31 @@
 import api from './api';
 
 /**
+ * Create a direct sale (without booking)
+ */
+export async function createDirectSale(saleData: any) {
+  try {
+    console.log('🔥 [salesService] Creating direct sale:', saleData);
+    const response = await api.post('/api/sales', saleData);
+    console.log('🔥 [salesService] Direct sale created:', response.data);
+    return {
+      success: true,
+      sale: response.data.sale,
+      message: response.data.message,
+    };
+  } catch (error: any) {
+    console.error('🔥 [salesService] Create direct sale error:', error);
+    return {
+      success: false,
+      error: {
+        code: error.code || 'CREATE_DIRECT_SALE_ERROR',
+        message: error.message || 'Failed to create direct sale',
+      },
+    };
+  }
+}
+
+/**
  * Create or update sale from booking
  */
 export async function createSaleFromBooking(bookingId: string, saleData: any) {
@@ -120,13 +145,15 @@ export async function transferToCashier(saleId: string) {
  */
 export async function getSale(saleId: string) {
   try {
+    console.log('🔥 [salesService] Getting sale by ID:', saleId);
     const response = await api.get(`/api/sales/${saleId}`);
+    console.log('🔥 [salesService] Sale retrieved:', response.data);
     return {
       success: true,
       sale: response.data.sale,
     };
   } catch (error: any) {
-    console.error('[salesService] Get sale error:', error);
+    console.error('🔥 [salesService] Get sale error:', error);
     return {
       success: false,
       error: {
@@ -170,21 +197,29 @@ export async function listSales(filters?: {
   dateTo?: string;
 }) {
   try {
+    console.log('🔥 [salesService] Listing sales with filters:', filters);
     const params = new URLSearchParams();
+    
     if (filters?.status) params.append('status', filters.status);
     if (filters?.paymentStatus) params.append('paymentStatus', filters.paymentStatus);
     if (filters?.saleType) params.append('saleType', filters.saleType);
     if (filters?.dateFrom) params.append('dateFrom', filters.dateFrom);
     if (filters?.dateTo) params.append('dateTo', filters.dateTo);
-
-    const response = await api.get(`/api/sales?${params.toString()}`);
+    
+    const queryString = params.toString();
+    const url = queryString ? `/api/sales?${queryString}` : '/api/sales';
+    
+    console.log('🔥 [salesService] Making API call to:', url);
+    const response = await api.get(url);
+    console.log('🔥 [salesService] Sales retrieved:', response.data);
+    
     return {
       success: true,
-      sales: response.data.sales,
-      count: response.data.count,
+      sales: response.data.sales || [],
+      count: response.data.count || 0,
     };
   } catch (error: any) {
-    console.error('[salesService] List sales error:', error);
+    console.error('🔥 [salesService] List sales error:', error);
     return {
       success: false,
       error: {
@@ -194,3 +229,4 @@ export async function listSales(filters?: {
     };
   }
 }
+

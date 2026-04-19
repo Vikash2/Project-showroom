@@ -6,7 +6,7 @@
  */
 
 import * as fc from 'fast-check';
-import type { Role, User } from '../../types/auth';
+import type { Role } from '../../types/auth';
 
 /**
  * Generator for all user roles

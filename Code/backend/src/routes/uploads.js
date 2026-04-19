@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
-const { storage } = require("../config/firebase");
+const { supabase } = require("../config/supabase");
 const authenticate = require("../middleware/authenticate");
 
 // Configure multer for memory storage
@@ -12,7 +12,7 @@ const upload = multer({
 
 /**
  * POST /api/uploads/presigned
- * Get presigned URL for direct upload
+ * Get presigned URL for direct upload (Supabase Storage)
  */
 router.post("/presigned", authenticate, async (req, res, next) => {
   try {
@@ -25,26 +25,28 @@ router.post("/presigned", authenticate, async (req, res, next) => {
       });
     }
 
-    const bucket = storage.bucket();
     const timestamp = Date.now();
     const storePath = `${folder}/${timestamp}_${filename}`;
-    const file = bucket.file(storePath);
 
-    // Generate signed URL for upload
-    const [uploadUrl] = await file.getSignedUrl({
-      version: "v4",
-      action: "write",
-      expires: Date.now() + 15 * 60 * 1000, // 15 minutes
-      contentType,
-    });
+    // Create a signed upload URL
+    const { data, error } = await supabase.storage
+      .from("documents")
+      .createSignedUploadUrl(storePath);
 
-    // Generate public URL for reading
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storePath}`;
+    if (error) {
+      throw error;
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from("documents")
+      .getPublicUrl(storePath);
 
     res.json({
-      uploadUrl,
-      publicUrl,
+      uploadUrl: data.signedUrl,
+      publicUrl: publicUrlData.publicUrl,
       storePath,
+      token: data.token,
     });
   } catch (error) {
     console.error("Presigned URL error:", error);
@@ -54,7 +56,7 @@ router.post("/presigned", authenticate, async (req, res, next) => {
 
 /**
  * POST /api/uploads/direct
- * Direct file upload to Firebase Storage
+ * Direct file upload to Supabase Storage
  */
 router.post(
   "/direct",
@@ -88,31 +90,30 @@ router.post(
         });
       }
 
-      const bucket = storage.bucket();
       const timestamp = Date.now();
       const storePath = `${folder}/${timestamp}_${file.originalname}`;
-      const fileRef = bucket.file(storePath);
 
-      // Upload file
-      await fileRef.save(file.buffer, {
-        contentType: file.mimetype,
-        metadata: {
-          metadata: {
-            uploadedBy: req.user.uid,
-            uploadedAt: new Date().toISOString(),
-          },
-        },
-      });
+      // Upload file to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from("documents")
+        .upload(storePath, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false,
+        });
 
-      // Make file publicly readable
-      await fileRef.makePublic();
+      if (error) {
+        throw error;
+      }
 
-      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storePath}`;
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from("documents")
+        .getPublicUrl(storePath);
 
       res.json({
         success: true,
-        url: publicUrl,
-        storePath,
+        url: publicUrlData.publicUrl,
+        storePath: data.path,
         filename: file.originalname,
         size: file.size,
         mimetype: file.mimetype,
@@ -125,18 +126,21 @@ router.post(
 );
 
 /**
- * DELETE /api/uploads/:path
- * Delete a file from Firebase Storage
+ * DELETE /api/uploads/:folder/:filename
+ * Delete a file from Supabase Storage
  */
 router.delete("/:folder/:filename", authenticate, async (req, res, next) => {
   try {
     const { folder, filename } = req.params;
     const storePath = `${folder}/${filename}`;
 
-    const bucket = storage.bucket();
-    const file = bucket.file(storePath);
+    const { error } = await supabase.storage
+      .from("documents")
+      .remove([storePath]);
 
-    await file.delete();
+    if (error) {
+      throw error;
+    }
 
     res.json({
       success: true,
@@ -144,7 +148,7 @@ router.delete("/:folder/:filename", authenticate, async (req, res, next) => {
       storePath,
     });
   } catch (error) {
-    if (error.code === 404) {
+    if (error.statusCode === "404") {
       return res.status(404).json({
         error: "File not found",
         code: "FILE_NOT_FOUND",

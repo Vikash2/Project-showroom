@@ -1,44 +1,55 @@
-const { db, auth } = require("../config/firebase");
-
-const USERS_REF = "users";
+const { supabase } = require("../config/supabase");
 
 /**
- * Create a new user in Firebase Auth and RTDB
+ * Create a new user in Supabase Auth and Database
  */
 async function createUser(userData) {
   try {
     const { email, password, name, mobile, role, showroomId } = userData;
 
-    // Create Firebase Auth user
-    const userRecord = await auth.createUser({
+    // Create Supabase Auth user
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      displayName: name,
+      email_confirm: true, // Auto-confirm email
+      user_metadata: {
+        name,
+        mobile,
+        role,
+        showroom_id: showroomId || null,
+      },
     });
 
-    const uid = userRecord.uid;
+    if (authError) {
+      throw authError;
+    }
 
-    // Set custom claims for role-based access
-    await auth.setCustomUserClaims(uid, { 
-      role, 
-      showroomId: showroomId || null 
-    });
+    const uid = authData.user.id;
 
-    // Store user data in RTDB
-    const userDoc = {
-      uid,
-      email,
-      name,
-      mobile,
-      role,
-      showroomId: showroomId || null,
-      createdAt: Date.now(),
-      isActive: true,
-    };
+    // Create user profile in database
+    const { data: dbData, error: dbError } = await supabase
+      .from("users")
+      .insert({
+        id: uid,
+        name,
+        email,
+        mobile,
+        role,
+        showroom_id: showroomId || null,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-    await db.ref(`${USERS_REF}/${uid}`).set(userDoc);
+    if (dbError) {
+      // Rollback: delete auth user if database insert fails
+      await supabase.auth.admin.deleteUser(uid);
+      throw dbError;
+    }
 
-    return { id: uid, ...userDoc };
+    return { id: uid, ...dbData };
   } catch (error) {
     console.error("Create user error:", error);
     throw error;
@@ -50,13 +61,21 @@ async function createUser(userData) {
  */
 async function getUser(uid) {
   try {
-    const snap = await db.ref(`${USERS_REF}/${uid}`).once("value");
-    
-    if (!snap.exists()) {
-      return null;
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", uid)
+      .eq("is_active", true)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        return null; // User not found
+      }
+      throw error;
     }
 
-    return { id: uid, ...snap.val() };
+    return { id: data.id, ...data };
   } catch (error) {
     console.error("Get user error:", error);
     throw error;
@@ -68,30 +87,28 @@ async function getUser(uid) {
  */
 async function listUsers(filters = {}) {
   try {
-    let query = db.ref(USERS_REF);
+    let query = supabase
+      .from("users")
+      .select("*")
+      .eq("is_active", true);
 
     // Filter by showroom if provided
     if (filters.showroomId) {
-      query = query.orderByChild("showroomId").equalTo(filters.showroomId);
+      query = query.eq("showroom_id", filters.showroomId);
     }
 
-    const snap = await query.once("value");
-    
-    if (!snap.exists()) {
-      return [];
-    }
-
-    const users = [];
-    snap.forEach((childSnap) => {
-      users.push({ id: childSnap.key, ...childSnap.val() });
-    });
-
-    // Filter by role if provided (RTDB doesn't support multiple orderBy)
+    // Filter by role if provided
     if (filters.role) {
-      return users.filter(u => u.role === filters.role);
+      query = query.eq("role", filters.role);
     }
 
-    return users;
+    const { data, error } = await query.order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data || []).map(user => ({ id: user.id, ...user }));
   } catch (error) {
     console.error("List users error:", error);
     throw error;
@@ -112,16 +129,25 @@ async function updateUser(uid, updates) {
       }
     });
 
-    filteredUpdates.updatedAt = Date.now();
+    filteredUpdates.updated_at = new Date().toISOString();
 
-    await db.ref(`${USERS_REF}/${uid}`).update(filteredUpdates);
+    const { data, error } = await supabase
+      .from("users")
+      .update(filteredUpdates)
+      .eq("id", uid)
+      .select()
+      .single();
 
-    // Update Firebase Auth if email changed
-    if (updates.email) {
-      await auth.updateUser(uid, { email: updates.email });
+    if (error) {
+      throw error;
     }
 
-    return await getUser(uid);
+    // Update Supabase Auth if email changed
+    if (updates.email) {
+      await supabase.auth.admin.updateUserById(uid, { email: updates.email });
+    }
+
+    return { id: data.id, ...data };
   } catch (error) {
     console.error("Update user error:", error);
     throw error;
@@ -129,21 +155,34 @@ async function updateUser(uid, updates) {
 }
 
 /**
- * Update user role and custom claims
+ * Update user role and showroom assignment
  */
 async function updateUserRole(uid, role, showroomId) {
   try {
-    // Update custom claims
-    await auth.setCustomUserClaims(uid, { role, showroomId: showroomId || null });
+    const { data, error } = await supabase
+      .from("users")
+      .update({
+        role,
+        showroom_id: showroomId || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", uid)
+      .select()
+      .single();
 
-    // Update RTDB
-    await db.ref(`${USERS_REF}/${uid}`).update({
-      role,
-      showroomId: showroomId || null,
-      updatedAt: Date.now(),
+    if (error) {
+      throw error;
+    }
+
+    // Update user metadata in Supabase Auth
+    await supabase.auth.admin.updateUserById(uid, {
+      user_metadata: {
+        role,
+        showroom_id: showroomId || null,
+      },
     });
 
-    return await getUser(uid);
+    return { id: data.id, ...data };
   } catch (error) {
     console.error("Update user role error:", error);
     throw error;
@@ -155,13 +194,22 @@ async function updateUserRole(uid, role, showroomId) {
  */
 async function deleteUser(uid) {
   try {
-    // Disable Firebase Auth user
-    await auth.updateUser(uid, { disabled: true });
+    // Soft delete in database
+    const { error: dbError } = await supabase
+      .from("users")
+      .update({
+        is_active: false,
+        deleted_at: new Date().toISOString(),
+      })
+      .eq("id", uid);
 
-    // Soft delete in RTDB
-    await db.ref(`${USERS_REF}/${uid}`).update({
-      isActive: false,
-      deletedAt: Date.now(),
+    if (dbError) {
+      throw dbError;
+    }
+
+    // Disable Supabase Auth user
+    await supabase.auth.admin.updateUserById(uid, {
+      ban_duration: "876000h", // Ban for 100 years (effectively permanent)
     });
 
     return { success: true, message: "User disabled successfully" };

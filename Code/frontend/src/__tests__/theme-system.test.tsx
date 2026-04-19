@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { ThemeProvider } from '../state/ThemeContext';
 
 describe('Bug Condition: Theme System', () => {

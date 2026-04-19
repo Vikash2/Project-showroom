@@ -4,7 +4,6 @@ import { useDirectSales } from '../../state/DirectSaleContext';
 import { useVehicles } from '../../state/VehicleContext';
 import { Search, Filter, Calendar, FileText, X, CheckCircle, AlertCircle, Zap, Upload, FileCheck, DollarSign, Truck, CreditCard, Eye, ShoppingCart } from 'lucide-react';
 import type { Booking, FinalSale } from '../../types/booking';
-import type { DirectSaleRecord } from '../../types/directSale';
 import DocumentUploadSection from '../../components/Sales/DocumentUploadSection';
 import FinalSalesForm from '../../components/Sales/FinalSalesForm';
 import DirectSalesForm from '../../components/Sales/DirectSalesForm';
@@ -38,8 +37,8 @@ type UnifiedSaleDisplay = {
 };
 
 export default function SalesProcessing() {
-  const { bookings, updateBookingSale, updateBookingStatus, confirmPayment, confirmDelivery } = useBookings();
-  const { directSales, updateDirectSale, confirmPayment: confirmDirectPayment, confirmDelivery: confirmDirectDelivery } = useDirectSales();
+  const { bookings, isLoading: bookingsLoading, error: bookingsError, updateBookingSale, updateBookingStatus, confirmPayment, confirmDelivery, refreshBookings } = useBookings();
+  const { directSales, isLoading: directSalesLoading, error: directSalesError, confirmPayment: confirmDirectPayment, confirmDelivery: confirmDirectDelivery, refreshSales } = useDirectSales();
   const { vehicles } = useVehicles();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,44 +65,82 @@ export default function SalesProcessing() {
 
   // Convert bookings and direct sales to unified format
   const unifiedSales = useMemo((): UnifiedSaleDisplay[] => {
+    console.log('🔄 [SalesProcessing] Creating unified sales list:', {
+      bookingsCount: bookings.length,
+      directSalesCount: directSales.length,
+      bookingsLoading,
+      directSalesLoading,
+      bookingsError,
+      directSalesError
+    });
+
     const bookingSales: UnifiedSaleDisplay[] = bookings
-      .filter(bk => bk.status === 'Confirmed' || bk.status === 'Sales Finalized' || bk.status === 'Payment Complete' || bk.status === 'Delivered')
-      .map(bk => ({
-        id: bk.id,
-        source: 'BOOKING' as const,
-        customer: bk.customer,
-        date: bk.date,
-        status: bk.status,
-        pricing: bk.pricing,
-        vehicleConfig: bk.vehicleConfig,
-        documents: bk.documents,
-        sale: bk.sale,
-        paymentConfirmed: bk.paymentConfirmed,
-        deliveryConfirmed: bk.deliveryConfirmed,
-        bookingAmountPaid: bk.bookingAmountPaid,
-        balanceDue: bk.balanceDue,
-      }));
+      .filter(bk => {
+        const validStatuses = ['Confirmed', 'Sales Finalized', 'Payment Complete', 'Delivered'];
+        const isValid = validStatuses.includes(bk.status);
+        if (!isValid) {
+          console.log('🔄 [SalesProcessing] Filtering out booking with status:', bk.status, 'ID:', bk.id);
+        }
+        return isValid;
+      })
+      .map(bk => {
+        console.log('🔄 [SalesProcessing] Mapping booking to unified format:', bk.id, bk.status);
+        return {
+          id: bk.id,
+          source: 'BOOKING' as const,
+          customer: bk.customer,
+          date: bk.date,
+          status: bk.status,
+          pricing: bk.pricing,
+          vehicleConfig: bk.vehicleConfig,
+          documents: bk.documents || {},
+          sale: bk.sale,
+          paymentConfirmed: bk.paymentConfirmed,
+          deliveryConfirmed: bk.deliveryConfirmed,
+          bookingAmountPaid: bk.bookingAmountPaid,
+          balanceDue: bk.balanceDue,
+        };
+      });
 
     const directSalesList: UnifiedSaleDisplay[] = directSales
-      .filter(ds => ds.status === 'Draft' || ds.status === 'Sales Finalized' || ds.status === 'Payment Complete' || ds.status === 'Delivered')
-      .map(ds => ({
-        id: ds.id,
-        source: 'DIRECT' as const,
-        customer: ds.customer,
-        date: ds.date,
-        status: ds.status,
-        pricing: ds.pricing,
-        vehicleConfig: ds.vehicleConfig,
-        documents: ds.documents,
-        saleDetails: ds.saleDetails,
-        paymentConfirmed: ds.paymentConfirmed,
-        deliveryConfirmed: ds.deliveryConfirmed,
-      }));
+      .filter(ds => {
+        const validStatuses = ['Draft', 'Sales Finalized', 'Payment Complete', 'Delivered'];
+        const isValid = validStatuses.includes(ds.status);
+        if (!isValid) {
+          console.log('🔄 [SalesProcessing] Filtering out direct sale with status:', ds.status, 'ID:', ds.id);
+        }
+        return isValid;
+      })
+      .map(ds => {
+        console.log('🔄 [SalesProcessing] Mapping direct sale to unified format:', ds.id, ds.status);
+        return {
+          id: ds.id,
+          source: 'DIRECT' as const,
+          customer: ds.customer,
+          date: ds.date,
+          status: ds.status,
+          pricing: ds.pricing,
+          vehicleConfig: ds.vehicleConfig,
+          documents: ds.documents || {},
+          saleDetails: ds.saleDetails,
+          paymentConfirmed: ds.paymentConfirmed,
+          deliveryConfirmed: ds.deliveryConfirmed,
+        };
+      });
 
-    return [...bookingSales, ...directSalesList].sort((a, b) => 
+    const combined = [...bookingSales, ...directSalesList].sort((a, b) => 
       new Date(b.date).getTime() - new Date(a.date).getTime()
     );
-  }, [bookings, directSales]);
+
+    console.log('🔄 [SalesProcessing] Unified sales created:', {
+      totalCount: combined.length,
+      bookingSalesCount: bookingSales.length,
+      directSalesCount: directSalesList.length,
+      combined: combined.map(s => ({ id: s.id, source: s.source, status: s.status }))
+    });
+
+    return combined;
+  }, [bookings, directSales, bookingsLoading, directSalesLoading]);
 
   const selectedSale = selectedSaleId && selectedSaleSource
     ? unifiedSales.find(s => s.id === selectedSaleId && s.source === selectedSaleSource) ?? null
@@ -112,12 +149,21 @@ export default function SalesProcessing() {
   const viewSalesBooking = viewSalesBookingId ? bookings.find(b => b.id === viewSalesBookingId) ?? null : null;
 
   const areAllDocumentsUploaded = (sale: UnifiedSaleDisplay): boolean => {
-    return Object.values(sale.documents).every(doc => !!doc.file);
+    if (!sale.documents || typeof sale.documents !== 'object') {
+      console.log('🔄 [SalesProcessing] No documents found for sale:', sale.id);
+      return false;
+    }
+    const result = Object.values(sale.documents).every((doc: any) => !!doc?.file);
+    console.log('🔄 [SalesProcessing] Document check for sale:', sale.id, 'result:', result, 'documents:', sale.documents);
+    return result;
   };
 
   const isSalesFormComplete = (sale: UnifiedSaleDisplay): boolean => {
     const saleData = sale.source === 'BOOKING' ? sale.sale : sale.saleDetails;
-    if (!saleData) return false;
+    if (!saleData) {
+      console.log('🔄 [SalesProcessing] No sale data found for sale:', sale.id, 'source:', sale.source);
+      return false;
+    }
     
     // Check basic required fields
     if (!saleData.soldThrough) return false;
@@ -134,7 +180,7 @@ export default function SalesProcessing() {
     // Check insurance-specific fields
     if (saleData.insurance === 'YES') {
       if (!saleData.insuranceType) return false;
-      if (!saleData.insuranceNominee.name || !saleData.insuranceNominee.age || !saleData.insuranceNominee.relation) return false;
+      if (!saleData.insuranceNominee?.name || !saleData.insuranceNominee?.age || !saleData.insuranceNominee?.relation) return false;
     }
     
     // Check exchange-specific fields
@@ -146,6 +192,7 @@ export default function SalesProcessing() {
     // Check GST fields
     if (saleData.isGstNumber === 'YES' && !saleData.gstNumber) return false;
     
+    console.log('🔄 [SalesProcessing] Sales form complete check for sale:', sale.id, 'result: true');
     return true;
   };
 
@@ -171,7 +218,10 @@ export default function SalesProcessing() {
   };
 
   const getDocumentCount = (sale: UnifiedSaleDisplay) => {
-    const uploaded = Object.values(sale.documents).filter(doc => !!doc.file).length;
+    if (!sale.documents || typeof sale.documents !== 'object') {
+      return { uploaded: 0, total: 0 };
+    }
+    const uploaded = Object.values(sale.documents).filter((doc: any) => !!doc?.file).length;
     const total = Object.keys(sale.documents).length;
     return { uploaded, total };
   };
@@ -412,6 +462,67 @@ export default function SalesProcessing() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Loading State */}
+      {(bookingsLoading || directSalesLoading) && (
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm border border-[var(--border)] p-8">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mr-3"></div>
+            <span className="text-[var(--text-secondary)]">Loading sales data...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {(bookingsError || directSalesError) && (
+        <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={20} className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">
+                Data Loading Error
+              </h3>
+              {bookingsError && (
+                <p className="text-xs text-red-700 dark:text-red-300 mb-2">
+                  Bookings: {bookingsError}
+                </p>
+              )}
+              {directSalesError && (
+                <p className="text-xs text-red-700 dark:text-red-300 mb-2">
+                  Direct Sales: {directSalesError}
+                </p>
+              )}
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => {
+                    refreshBookings();
+                    refreshSales();
+                  }}
+                  className="px-3 py-1 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition font-semibold"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Debug Info - Remove in production */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">
+            Debug Info (Development Only)
+          </h3>
+          <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+            <div>Bookings: {bookings.length} loaded, Loading: {bookingsLoading ? 'Yes' : 'No'}, Error: {bookingsError || 'None'}</div>
+            <div>Direct Sales: {directSales.length} loaded, Loading: {directSalesLoading ? 'Yes' : 'No'}, Error: {directSalesError || 'None'}</div>
+            <div>Unified Sales: {unifiedSales.length} total</div>
+            <div>Filtered Sales: {filteredSales.length} after filters</div>
+            <div>Paginated Sales: {paginatedSales.length} on current page</div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">Sales Processing</h1>

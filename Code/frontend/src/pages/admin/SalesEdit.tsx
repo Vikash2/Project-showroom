@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import { useDirectSales } from '../../state/DirectSaleContext';
 import DirectSalesForm from '../../components/Sales/DirectSalesForm';
+import * as salesService from '../../services/salesService';
 
 export default function SalesEdit() {
   const { saleId } = useParams<{ saleId: string }>();
   const navigate = useNavigate();
-  const { getDirectSaleById, fetchDirectSaleById } = useDirectSales();
+  const { getDirectSaleById } = useDirectSales();
   
   const [sale, setSale] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,18 +26,29 @@ export default function SalesEdit() {
         setIsLoading(true);
         console.log('[SalesEdit] Loading sale:', saleId);
         
-        // Try to get from local state first
+        // First try to get from local state
         let saleData = getDirectSaleById(saleId);
         
-        // If not found, fetch from backend
         if (!saleData) {
-          console.log('[SalesEdit] Sale not in local state, fetching from backend...');
-          saleData = await fetchDirectSaleById(saleId);
+          console.log('[SalesEdit] Sale not found in local state, fetching from API...');
+          // If not in local state, fetch from API
+          const result = await salesService.getSale(saleId);
+          
+          if (result.success && result.sale) {
+            console.log('[SalesEdit] Sale fetched from API:', result.sale);
+            saleData = result.sale;
+          } else {
+            console.error('[SalesEdit] Failed to fetch sale from API:', result.error);
+            setError(result.error?.message || 'Sale not found');
+            setIsLoading(false);
+            return;
+          }
         }
-        
+
         if (!saleData) {
           setError('Sale not found');
         } else {
+          console.log('[SalesEdit] Sale loaded successfully:', saleData);
           setSale(saleData);
         }
       } catch (err: any) {
@@ -48,7 +60,7 @@ export default function SalesEdit() {
     };
 
     loadSale();
-  }, [saleId]); // Only depend on saleId, not the functions
+  }, [saleId, getDirectSaleById]); // Include getDirectSaleById in dependencies
 
   const handleSave = () => {
     console.log('[SalesEdit] Sale saved, redirecting to sales processing...');
@@ -135,7 +147,6 @@ export default function SalesEdit() {
           saleId={saleId!}
           onClose={handleCancel}
           onSave={handleSave}
-          isModal={false}
         />
       </div>
     </div>

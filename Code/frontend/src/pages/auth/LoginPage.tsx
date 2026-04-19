@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../state/AuthContext';
 import { useShowroom } from '../../state/ShowroomContext';
@@ -6,7 +6,7 @@ import { Mail, Lock, KeyRound, ShieldCheck, AlertCircle, Eye, EyeOff } from 'luc
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
-  const { loginWithEmail, isLoading } = useAuth();
+  const { loginWithEmail, isLoading, isAuthenticated, isInitializing } = useAuth();
   const { activeShowroom } = useShowroom();
   const navigate = useNavigate();
   const location = useLocation();
@@ -18,6 +18,14 @@ export default function LoginPage() {
   const [localError, setLocalError] = useState('');
 
   const from = location.state?.from?.pathname || '/admin';
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!isInitializing && isAuthenticated) {
+      console.log('🔐 LoginPage: User is authenticated, redirecting to:', from);
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, isInitializing, navigate, from]);
 
   const validateForm = () => {
     const errors: { email?: string; password?: string } = {};
@@ -43,14 +51,34 @@ export default function LoginPage() {
     e.preventDefault();
     setLocalError('');
     
-    if (!validateForm()) return;
+    console.log('🔐 LoginPage: Form submitted');
     
-    const result = await loginWithEmail(email, password);
-    if (result.success) {
-       toast.success('Successfully logged in');
-       navigate(from, { replace: true });
-    } else if (result.error) {
-       setLocalError(result.error.userMessage);
+    if (!validateForm()) {
+      console.log('🔐 LoginPage: Validation failed');
+      return;
+    }
+    
+    console.log('🔐 LoginPage: Validation passed, calling loginWithEmail');
+    
+    try {
+      const result = await loginWithEmail(email, password);
+      
+      console.log('🔐 LoginPage: Login result received', { success: result.success });
+      
+      if (result.success) {
+        toast.success('Successfully logged in');
+        console.log('🔐 LoginPage: Login successful, auth state will trigger redirect');
+        // Don't navigate here - let the useEffect handle it when auth state updates
+      } else if (result.error) {
+        console.log('🔐 LoginPage: Login failed', result.error.code);
+        setLocalError(result.error.userMessage);
+      } else {
+        console.log('🔐 LoginPage: Login failed with no error details');
+        setLocalError('Login failed. Please try again.');
+      }
+    } catch (error: any) {
+      console.error('🔐 LoginPage: Unexpected error during login', error);
+      setLocalError('An unexpected error occurred. Please try again.');
     }
   };
 
@@ -146,6 +174,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}

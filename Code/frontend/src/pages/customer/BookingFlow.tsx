@@ -43,21 +43,26 @@ export default function BookingFlow() {
     };
   }, [selectedVariant, selectedAccessoryIds, accessories]);
 
-  const handleBookNow = () => {
+  const handleBookNow = async () => {
     if (!selectedConfig.modelId || !selectedConfig.variantId || !selectedConfig.colorName || !customerInfo.fullName || !customerInfo.mobile) return;
     if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
-      const bookingId = addBooking({
+      const bookingId = await addBooking({
         customer: customerInfo as BookingCustomer,
         vehicleConfig: selectedConfig as SelectedVehicleConfig,
         selectedAccessories: selectedAccessoryIds,
         pricing
       });
 
+      // Wait for booking to be created
+      if (!bookingId) {
+        throw new Error('Failed to create booking');
+      }
+
       // Simulate payment of booking amount ₹5000
-      addPayment(bookingId, {
+      await addPayment(bookingId, {
         amount: 5000,
         method: 'UPI',
         referenceNumber: `UPI${Math.floor(Math.random() * 1000000000)}`,

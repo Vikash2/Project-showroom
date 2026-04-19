@@ -149,8 +149,6 @@ describe('Testing Infrastructure', () => {
 
   describe('Viewport testing utilities', () => {
     it('should set and restore viewport size', () => {
-      const originalWidth = window.innerWidth;
-      
       setViewportSize({ width: 375, height: 667 });
       expect(window.innerWidth).toBe(375);
       expect(window.innerHeight).toBe(667);

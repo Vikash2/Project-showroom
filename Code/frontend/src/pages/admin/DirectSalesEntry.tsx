@@ -5,8 +5,8 @@ import { useDirectSales } from '../../state/DirectSaleContext';
 import { useAccessories } from '../../state/AccessoryContext';
 import { useAuth } from '../../state/AuthContext';
 import { useShowroom } from '../../state/ShowroomContext';
-import { ShoppingCart, User, Car, FileText, CheckCircle, ArrowRight, AlertCircle } from 'lucide-react';
-import type { DirectSaleRecord, DirectSaleCustomer, DirectSaleVehicleConfig } from '../../types/directSale';
+import { ShoppingCart, User, Car, FileText, CheckCircle, ArrowRight } from 'lucide-react';
+import type { DirectSaleCustomer, DirectSaleVehicleConfig } from '../../types/directSale';
 import DirectSalesForm from '../../components/Sales/DirectSalesForm';
 
 export default function DirectSalesEntry() {
@@ -46,7 +46,7 @@ export default function DirectSalesEntry() {
     };
   }, [selectedVariant, selectedAccessoryIds, accessories]);
 
-  const handleCreateDraft = () => {
+  const handleCreateDraft = async () => {
     if (!customer.fullName || !customer.mobile || !customer.address) {
       alert('Please fill in all required customer details');
       return;
@@ -56,8 +56,10 @@ export default function DirectSalesEntry() {
       return;
     }
 
-    // Create draft direct sale
-    const saleId = addDirectSale({
+    console.log('🔥 [DirectSalesEntry] Creating draft sale...');
+
+    // Create draft direct sale via API
+    const saleId = await addDirectSale({
       customer: customer as DirectSaleCustomer,
       vehicleConfig: vehicleConfig as DirectSaleVehicleConfig,
       pricing,
@@ -88,8 +90,10 @@ export default function DirectSalesEntry() {
       },
       status: 'Draft',
       createdBy: user?.email,
-      showroomId: activeShowroom?.id,
+      showroomId: activeShowroom?.showroomId,
     });
+
+    console.log('🔥 [DirectSalesEntry] Draft sale created with ID:', saleId);
 
     setDraftSaleId(saleId);
     setShowSalesForm(true);

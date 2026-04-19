@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { useInquiries } from '../state/InquiryContext';
 import { useVehicles } from '../state/VehicleContext';
 import { useShowroom } from '../state/ShowroomContext';
-import { Car, DollarSign, Calendar, Repeat } from 'lucide-react';
+import { Car, DollarSign, Repeat } from 'lucide-react';
 import type { LeadSource } from '../types/inquiry';
 
 const inquirySchema = z.object({

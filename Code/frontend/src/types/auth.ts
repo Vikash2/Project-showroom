@@ -4,6 +4,7 @@ export type Role =
   | 'Sales Executive'
   | 'Accountant'
   | 'Documentation Officer'
+  | 'Cashier'
   | 'Customer';
 
 export interface User {
@@ -22,6 +23,7 @@ export const roleDisplayNames: Record<Role, string> = {
     'Sales Executive': 'Sales Consultant',
     'Accountant': 'Accounts Officer',
     'Documentation Officer': 'Records Officer',
+    'Cashier': 'Cashier',
     'Customer': 'Customer'
 };
 
@@ -31,6 +33,7 @@ export const roleContext: Record<Role, 'System' | 'Showroom Staff' | 'Public'> =
     'Sales Executive': 'Showroom Staff',
     'Accountant': 'Showroom Staff',
     'Documentation Officer': 'Showroom Staff',
+    'Cashier': 'Showroom Staff',
     'Customer': 'Public'
 };
 

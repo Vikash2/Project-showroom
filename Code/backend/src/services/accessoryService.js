@@ -1,24 +1,26 @@
-const { db } = require("../config/firebase");
-
-const ACCESSORIES_REF = "accessories";
+const { supabase } = require("../config/supabase");
 
 /**
  * Create a new accessory
  */
 async function createAccessory(accessoryData) {
   try {
-    const ref = db.ref(ACCESSORIES_REF).push();
-    const accessoryId = ref.key;
+    const { data, error } = await supabase
+      .from("accessories")
+      .insert({
+        ...accessoryData,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-    const accessory = {
-      accessoryId,
-      ...accessoryData,
-      createdAt: Date.now(),
-      isActive: accessoryData.isActive !== undefined ? accessoryData.isActive : true,
-    };
+    if (error) {
+      throw error;
+    }
 
-    await ref.set(accessory);
-    return accessory;
+    return data;
   } catch (error) {
     console.error("Create accessory error:", error);
     throw error;
@@ -30,39 +32,28 @@ async function createAccessory(accessoryData) {
  */
 async function listAccessories(filters = {}) {
   try {
-    const snap = await db.ref(ACCESSORIES_REF).once("value");
-    
-    if (!snap.exists()) {
-      return [];
+    let query = supabase
+      .from("accessories")
+      .select("*")
+      .eq("is_active", true);
+
+    // Filter by showroom if provided
+    if (filters.showroomId) {
+      query = query.eq("showroom_id", filters.showroomId);
     }
 
-    const accessories = [];
-    snap.forEach((childSnap) => {
-      const accessory = { accessoryId: childSnap.key, ...childSnap.val() };
-      
-      // Apply filters
-      if (filters.category && accessory.category !== filters.category) {
-        return;
-      }
-      if (filters.isActive !== undefined && accessory.isActive !== filters.isActive) {
-        return;
-      }
-      if (filters.showroomId && accessory.showroomId !== filters.showroomId) {
-        return;
-      }
-      
-      // Filter by vehicle compatibility
-      if (filters.vehicleId) {
-        if (!accessory.compatibleVehicles || 
-            !accessory.compatibleVehicles.includes(filters.vehicleId)) {
-          return;
-        }
-      }
-      
-      accessories.push(accessory);
-    });
+    // Filter by category if provided
+    if (filters.category) {
+      query = query.eq("category", filters.category);
+    }
 
-    return accessories;
+    const { data, error } = await query.order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return data || [];
   } catch (error) {
     console.error("List accessories error:", error);
     throw error;
@@ -74,13 +65,21 @@ async function listAccessories(filters = {}) {
  */
 async function getAccessory(accessoryId) {
   try {
-    const snap = await db.ref(`${ACCESSORIES_REF}/${accessoryId}`).once("value");
-    
-    if (!snap.exists()) {
-      return null;
+    const { data, error } = await supabase
+      .from("accessories")
+      .select("*")
+      .eq("id", accessoryId)
+      .eq("is_active", true)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        return null; // Accessory not found
+      }
+      throw error;
     }
 
-    return { accessoryId, ...snap.val() };
+    return data;
   } catch (error) {
     console.error("Get accessory error:", error);
     throw error;
@@ -92,9 +91,20 @@ async function getAccessory(accessoryId) {
  */
 async function updateAccessory(accessoryId, updates) {
   try {
-    updates.updatedAt = Date.now();
-    await db.ref(`${ACCESSORIES_REF}/${accessoryId}`).update(updates);
-    return await getAccessory(accessoryId);
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from("accessories")
+      .update(updates)
+      .eq("id", accessoryId)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
   } catch (error) {
     console.error("Update accessory error:", error);
     throw error;
@@ -102,14 +112,22 @@ async function updateAccessory(accessoryId, updates) {
 }
 
 /**
- * Delete accessory (soft delete)
+ * Soft delete accessory
  */
 async function deleteAccessory(accessoryId) {
   try {
-    await db.ref(`${ACCESSORIES_REF}/${accessoryId}`).update({
-      isActive: false,
-      deletedAt: Date.now(),
-    });
+    const { error } = await supabase
+      .from("accessories")
+      .update({
+        is_active: false,
+        deleted_at: new Date().toISOString(),
+      })
+      .eq("id", accessoryId);
+
+    if (error) {
+      throw error;
+    }
+
     return { success: true, message: "Accessory deleted successfully" };
   } catch (error) {
     console.error("Delete accessory error:", error);

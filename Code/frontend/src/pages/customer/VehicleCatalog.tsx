@@ -4,7 +4,7 @@ import VehicleCard from '../../components/VehicleCard';
 import { Filter, SlidersHorizontal, X } from 'lucide-react';
 
 export default function VehicleCatalog() {
-  const { vehicles } = useVehicles();
+  const { vehicles, isLoading, error } = useVehicles();
   const [showFilters, setShowFilters] = useState(false);
 
   // Filter States
@@ -16,6 +16,54 @@ export default function VehicleCatalog() {
   const allFeatures = ['ABS', 'CBS', 'LED Lights', 'Bluetooth', 'USB Charging', 'Digital Console'];
   const categories = ['All', 'Scooter', 'Motorcycle'];
   const sortOptions = ['Price: Low to High', 'Price: High to Low', 'Mileage: High to Low', 'Newest'];
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-[var(--text-secondary)] text-sm">Loading vehicles...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Failed to Load Vehicles</h2>
+          <p className="text-[var(--text-secondary)] mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="btn-primary px-6 py-2"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show empty state
+  if (vehicles.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Filter className="w-8 h-8 text-gray-600" />
+          </div>
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">No Vehicles Available</h2>
+          <p className="text-[var(--text-secondary)]">No vehicles are currently available in the catalog.</p>
+        </div>
+      </div>
+    );
+  }
 
   const toggleFeature = (feat: string) => {
     setSelectedFeatures(prev => 

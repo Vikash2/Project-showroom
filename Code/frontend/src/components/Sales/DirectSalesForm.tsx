@@ -53,7 +53,10 @@ export default function DirectSalesForm({ saleId, onClose, onSave }: DirectSales
 
   const isPaymentConfirmed = directSale.paymentConfirmed || false;
 
-  const [saleDetails, setSaleDetails] = useState(directSale.saleDetails);
+  const [saleDetails, setSaleDetails] = useState({
+    ...directSale.saleDetails,
+    selectedAccessoriesFinal: directSale.saleDetails?.selectedAccessoriesFinal || {}
+  });
   const [documents, setDocuments] = useState(directSale.documents);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -112,7 +115,7 @@ export default function DirectSalesForm({ saleId, onClose, onSave }: DirectSales
   }, [saleDetails.otherState.selected, activeShowroom?.state]);
 
   useEffect(() => {
-    const accessoriesTotal = calculateAccessoriesTotal(saleDetails.selectedAccessoriesFinal);
+    const accessoriesTotal = calculateAccessoriesTotal(saleDetails.selectedAccessoriesFinal || {});
     if (saleDetails.accessoriesTotal !== accessoriesTotal) {
       setSaleDetails(prev => ({ ...prev, accessoriesTotal }));
     }
@@ -311,7 +314,7 @@ export default function DirectSalesForm({ saleId, onClose, onSave }: DirectSales
     );
   }
 
-  const compatibleAccessories = accessories;
+  const compatibleAccessories = accessories || [];
 
   return (
     <div className="fixed inset-0 bg-[var(--modal-overlay)] backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
@@ -777,7 +780,7 @@ export default function DirectSalesForm({ saleId, onClose, onSave }: DirectSales
               {compatibleAccessories.length > 0 ? (
                 <div className="space-y-3">
                   {compatibleAccessories.map(acc => {
-                    const currentAmount = saleDetails.selectedAccessoriesFinal[acc.id] || 0;
+                    const currentAmount = saleDetails.selectedAccessoriesFinal?.[acc.id] || 0;
                     const isSelected = currentAmount > 0;
 
                     return (
@@ -796,7 +799,7 @@ export default function DirectSalesForm({ saleId, onClose, onSave }: DirectSales
                                   }
                                 }));
                               } else {
-                                const { [acc.id]: _, ...rest } = saleDetails.selectedAccessoriesFinal;
+                                const { [acc.id]: _, ...rest } = saleDetails.selectedAccessoriesFinal || {};
                                 setSaleDetails(prev => ({
                                   ...prev,
                                   selectedAccessoriesFinal: rest
@@ -826,7 +829,7 @@ export default function DirectSalesForm({ saleId, onClose, onSave }: DirectSales
                                 setSaleDetails(prev => ({
                                   ...prev,
                                   selectedAccessoriesFinal: {
-                                    ...prev.selectedAccessoriesFinal,
+                                    ...(prev.selectedAccessoriesFinal || {}),
                                     [acc.id]: value
                                   }
                                 }));

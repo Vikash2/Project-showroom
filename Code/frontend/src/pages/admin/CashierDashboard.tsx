@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, Receipt, FileText, CheckCircle, Clock, AlertCircle, Eye } from 'lucide-react';
+import { DollarSign, FileText, CheckCircle, Clock, AlertCircle, Eye } from 'lucide-react';
 import { useAuth } from '../../state/AuthContext';
 import toast from 'react-hot-toast';
 import PaymentCollectionModal from '../../components/Cashier/PaymentCollectionModal';

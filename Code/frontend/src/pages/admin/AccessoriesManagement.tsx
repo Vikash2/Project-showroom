@@ -92,15 +92,6 @@ export default function AccessoriesManagement() {
     setIsAddModalOpen(true);
   };
 
-  const getCategoryIcon = (cat: AccessoryCategory) => {
-    switch (cat) {
-      case 'Safety': return <ShieldCheck size={20} className="text-emerald-500" />;
-      case 'Protection': return <Shield size={20} className="text-blue-500" />;
-      case 'Convenience': return <Settings size={20} className="text-purple-500" />;
-      default: return <Wrench size={20} className="text-amber-500" />;
-    }
-  };
-
   return (
     <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">

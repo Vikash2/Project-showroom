@@ -1,24 +1,26 @@
-const { db } = require("../config/firebase");
-
-const VEHICLES_REF = "vehicles";
+const { supabase } = require("../config/supabase");
 
 /**
  * Create a new vehicle
  */
 async function createVehicle(vehicleData) {
   try {
-    const ref = db.ref(VEHICLES_REF).push();
-    const vehicleId = ref.key;
+    const { data, error } = await supabase
+      .from("vehicles")
+      .insert({
+        ...vehicleData,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-    const vehicle = {
-      vehicleId,
-      ...vehicleData,
-      createdAt: Date.now(),
-      isActive: vehicleData.isActive !== undefined ? vehicleData.isActive : true,
-    };
+    if (error) {
+      throw error;
+    }
 
-    await ref.set(vehicle);
-    return vehicle;
+    return data;
   } catch (error) {
     console.error("Create vehicle error:", error);
     throw error;
@@ -30,34 +32,33 @@ async function createVehicle(vehicleData) {
  */
 async function listVehicles(filters = {}) {
   try {
-    const snap = await db.ref(VEHICLES_REF).once("value");
-    
-    if (!snap.exists()) {
-      return [];
+    let query = supabase
+      .from("vehicles")
+      .select("*")
+      .eq("is_active", true);
+
+    // Filter by showroom if provided
+    if (filters.showroomId) {
+      query = query.eq("showroom_id", filters.showroomId);
     }
 
-    const vehicles = [];
-    snap.forEach((childSnap) => {
-      const vehicle = { vehicleId: childSnap.key, ...childSnap.val() };
-      
-      // Apply filters
-      if (filters.category && vehicle.category !== filters.category) {
-        return;
-      }
-      if (filters.brand && vehicle.brand !== filters.brand) {
-        return;
-      }
-      if (filters.isActive !== undefined && vehicle.isActive !== filters.isActive) {
-        return;
-      }
-      if (filters.showroomId && vehicle.showroomId !== filters.showroomId) {
-        return;
-      }
-      
-      vehicles.push(vehicle);
-    });
+    // Filter by brand if provided
+    if (filters.brand) {
+      query = query.eq("brand", filters.brand);
+    }
 
-    return vehicles;
+    // Filter by category if provided
+    if (filters.category) {
+      query = query.eq("category", filters.category);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return data || [];
   } catch (error) {
     console.error("List vehicles error:", error);
     throw error;
@@ -69,13 +70,21 @@ async function listVehicles(filters = {}) {
  */
 async function getVehicle(vehicleId) {
   try {
-    const snap = await db.ref(`${VEHICLES_REF}/${vehicleId}`).once("value");
-    
-    if (!snap.exists()) {
-      return null;
+    const { data, error } = await supabase
+      .from("vehicles")
+      .select("*")
+      .eq("id", vehicleId)
+      .eq("is_active", true)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        return null; // Vehicle not found
+      }
+      throw error;
     }
 
-    return { vehicleId, ...snap.val() };
+    return data;
   } catch (error) {
     console.error("Get vehicle error:", error);
     throw error;
@@ -87,9 +96,20 @@ async function getVehicle(vehicleId) {
  */
 async function updateVehicle(vehicleId, updates) {
   try {
-    updates.updatedAt = Date.now();
-    await db.ref(`${VEHICLES_REF}/${vehicleId}`).update(updates);
-    return await getVehicle(vehicleId);
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from("vehicles")
+      .update(updates)
+      .eq("id", vehicleId)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
   } catch (error) {
     console.error("Update vehicle error:", error);
     throw error;
@@ -97,47 +117,50 @@ async function updateVehicle(vehicleId, updates) {
 }
 
 /**
- * Update stock for a specific variant and color
+ * Update vehicle stock
  */
-async function updateStock(vehicleId, variantId, colorName, stockData) {
+async function updateVehicleStock(vehicleId, variantId, colorId, quantity) {
   try {
-    const path = `${VEHICLES_REF}/${vehicleId}/variants/${variantId}/colors/${colorName}`;
-    
-    const updates = {
-      stockQty: stockData.stockQty,
-      updatedAt: Date.now(),
-    };
+    // This would update the vehicle_colors table
+    const { data, error } = await supabase
+      .from("vehicle_colors")
+      .update({
+        stock_qty: quantity,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", colorId)
+      .eq("variant_id", variantId)
+      .select()
+      .single();
 
-    if (stockData.status) {
-      updates.status = stockData.status;
-    } else {
-      // Auto-determine status based on quantity
-      if (stockData.stockQty === 0) {
-        updates.status = "Out of Stock";
-      } else if (stockData.stockQty <= 3) {
-        updates.status = "Low Stock";
-      } else {
-        updates.status = "In Stock";
-      }
+    if (error) {
+      throw error;
     }
 
-    await db.ref(path).update(updates);
-    return await getVehicle(vehicleId);
+    return data;
   } catch (error) {
-    console.error("Update stock error:", error);
+    console.error("Update vehicle stock error:", error);
     throw error;
   }
 }
 
 /**
- * Delete vehicle (soft delete)
+ * Soft delete vehicle
  */
 async function deleteVehicle(vehicleId) {
   try {
-    await db.ref(`${VEHICLES_REF}/${vehicleId}`).update({
-      isActive: false,
-      deletedAt: Date.now(),
-    });
+    const { error } = await supabase
+      .from("vehicles")
+      .update({
+        is_active: false,
+        deleted_at: new Date().toISOString(),
+      })
+      .eq("id", vehicleId);
+
+    if (error) {
+      throw error;
+    }
+
     return { success: true, message: "Vehicle deleted successfully" };
   } catch (error) {
     console.error("Delete vehicle error:", error);
@@ -150,6 +173,6 @@ module.exports = {
   listVehicles,
   getVehicle,
   updateVehicle,
-  updateStock,
+  updateVehicleStock,
   deleteVehicle,
 };
