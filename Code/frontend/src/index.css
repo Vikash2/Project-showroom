@@ -1,0 +1,196 @@
+@import "tailwindcss";
+
+:root {
+  /* Honda Red Branding */
+  --primary-50: #fff1f2;
+  --primary-100: #ffe4e6;
+  --primary-200: #fecdd3;
+  --primary-300: #fda4af;
+  --primary-400: #fb7185;
+  --primary-500: #f43f5e;
+  --primary-600: #e11d48;
+  --primary-700: #be123c;
+  --primary-800: #9f1239;
+  --primary-900: #881337;
+
+  --primary: var(--primary-600);
+  
+  /* Semantic Tokens - Light Theme (layered hierarchy) */
+  --bg-primary: #f8fafc;       /* Page canvas — soft blue-gray, NOT harsh white */
+  --bg-secondary: #f1f5f9;     /* Sidebar, table headers, filter bars */
+  --bg-tertiary: #e2e8f0;      /* Inputs, selected states, chips */
+
+  --text-primary: #0f172a;     /* High contrast headings */
+  --text-secondary: #334155;   /* Body text */
+  --text-muted: #64748b;       /* Captions, placeholders */
+
+  --border: #cbd5e1;           /* Visible card borders */
+  --border-color: var(--border);
+
+  --card-bg: #ffffff;          /* Pure white cards on off-white canvas = depth */
+  --card-border: #cbd5e1;
+
+  --input-bg: #ffffff;
+  --input-text: #0f172a;
+
+  --navbar-bg: #ffffff;
+  --navbar-text: #0f172a;
+
+  --hover-bg: #f1f5f9;         /* Subtle hover */
+
+  /* Selection States — theme-aware, never hardcoded light */
+  --selection-bg: #fef2f2;          /* light: soft red tint */
+  --selection-border: #dc2626;      /* red-600 */
+  --selection-text: #0f172a;        /* stays dark in light mode */
+  --selection-muted: #64748b;
+
+  /* Hover tint for selectable cards */
+  --hover-selection-bg: #fff5f5;
+  --hover-selection-border: #fca5a5;
+
+  /* Legacy compatibility (to be phased out) */
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --muted: var(--text-muted);
+  
+  /* Tables */
+  --table-header-bg: var(--bg-secondary);
+  --table-row-hover: var(--hover-bg);
+  
+  /* Modals */
+  --modal-bg: var(--card-bg);
+  --modal-overlay: rgba(15, 23, 42, 0.55);
+  
+  /* Misc */
+  --scrollbar-track: var(--bg-secondary);
+  --scrollbar-thumb: #94a3b8;
+  --skeleton-base: #e2e8f0;
+  --skeleton-highlight: #f1f5f9;
+  --toast-bg: #ffffff;
+  --toast-border: #cbd5e1;
+
+  /* Elevation Tokens - Light (stronger shadows for depth on off-white) */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+}
+
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  --border: #334155;
+  --border-color: var(--border);
+
+  --card-bg: #1e293b;
+  --card-border: #334155;
+
+  --input-bg: #0f172a;
+  --input-text: #f1f5f9;
+
+  --navbar-bg: #0f172a;
+  --navbar-text: #f1f5f9;
+
+  --hover-bg: #334155;
+
+  /* Selection States — dark mode overrides */
+  --selection-bg: #3b0a0a;          /* dark: deep red tint, not light */
+  --selection-border: #ef4444;      /* red-500, brighter for dark bg */
+  --selection-text: #f1f5f9;        /* light text on dark bg */
+  --selection-muted: #94a3b8;
+
+  --hover-selection-bg: #2d0808;
+  --hover-selection-border: #f87171;
+
+  /* Legacy compatibility */
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --muted: var(--text-muted);
+  
+  /* Tables */
+  --table-header-bg: var(--bg-secondary);
+  --table-row-hover: var(--hover-bg);
+  
+  /* Modals */
+  --modal-bg: var(--card-bg);
+  --modal-overlay: rgba(2, 6, 23, 0.8);
+  
+  /* Misc */
+  --scrollbar-track: var(--bg-secondary);
+  --scrollbar-thumb: #475569;
+  --skeleton-base: #1e293b;
+  --skeleton-highlight: #334155;
+  --toast-bg: var(--card-bg);
+  --toast-border: var(--border);
+
+  /* Elevation Tokens (Dark) */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.6);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.7);
+  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.5);
+}
+
+@layer base {
+  body {
+    @apply bg-[var(--background)] text-[var(--foreground)] antialiased transition-colors duration-300;
+    font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 bg-[var(--primary)] text-white font-bold rounded-xl hover:bg-[var(--primary-700)] transition-all shadow-lg shadow-red-500/20 hover:shadow-red-500/40 active:scale-[0.98] disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 bg-[var(--card-bg)] text-[var(--foreground)] font-bold rounded-xl hover:bg-[var(--table-row-hover)] transition-all shadow-md hover:shadow-lg border border-[var(--border)] active:shadow-sm active:scale-[0.98];
+  }
+
+  .card {
+    @apply bg-[var(--card-bg)] backdrop-blur-sm rounded-2xl border border-[var(--border)] overflow-hidden transition-all duration-300 shadow-[var(--shadow-md)] hover:shadow-[var(--shadow-lg)];
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2.5 border border-[var(--border)] bg-[var(--input-bg)] text-[var(--text-primary)] rounded-xl focus:ring-4 focus:ring-red-500/10 focus:border-red-500 outline-none transition-all placeholder:text-[var(--text-muted)] font-bold text-sm shadow-sm;
+  }
+
+  .choice-card {
+    @apply relative flex items-center gap-4 p-5 rounded-2xl border-2 border-[var(--border)] bg-[var(--card-bg)] cursor-pointer transition-all duration-300 hover:border-[var(--hover-selection-border)] hover:bg-[var(--hover-selection-bg)] hover:shadow-lg active:scale-[0.98];
+  }
+
+  .choice-card-active {
+    @apply border-[var(--selection-border)] bg-[var(--selection-bg)] shadow-lg;
+  }
+
+  /* Selectable grid card — vehicle / variant / accessory */
+  .select-card {
+    @apply cursor-pointer rounded-xl border-2 border-[var(--border)] bg-[var(--card-bg)] transition-all duration-200
+           hover:border-[var(--hover-selection-border)] hover:bg-[var(--hover-selection-bg)];
+  }
+
+  .select-card-active {
+    @apply border-[var(--selection-border)] bg-[var(--selection-bg)] shadow-lg;
+  }
+
+  .glass {
+    @apply bg-[var(--bg-primary)]/70 backdrop-blur-xl border border-[var(--bg-primary)]/20 shadow-[var(--shadow-lg)];
+  }
+
+  .section-title {
+    @apply text-4xl md:text-6xl font-black text-[var(--foreground)] text-center tracking-tight leading-none;
+  }
+
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+}

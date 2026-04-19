@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23dc2626' stroke='none'%3E%3Cpath d='M21 16V8a2 2 0 0 0-2-2h-5l-4-4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z'/%3E%3C/svg%3E" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dua Honda | Authorized Dealer</title>
+    <script>
+      // FOUC Prevention: Apply theme before React renders
+      (function() {
+        const storageKey = 'showroom-vms-theme';
+        const theme = localStorage.getItem(storageKey) || 'system';
+        
+        let resolvedTheme = theme;
+        if (theme === 'system') {
+          resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        
+        document.documentElement.setAttribute('data-theme', resolvedTheme);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

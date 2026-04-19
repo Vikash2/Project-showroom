@@ -1,0 +1,218 @@
+VEHICLE SALES APPLICATION FLOW CHART (FINAL)
+[START]
+   |
+   v
+[Customer Meets SALESMAN] (USER TYPE 1)
+   |
+   v
+[Customer Want?]
+   |------------------------------|-----------------------------|
+   |                              |                             |
+   v                              v                             v
+[Enquiry for Vehicle]       [Purchase Vehicle]            [Book Vehicle]
+   |                              |                             |
+   v                              v                             v
+[Salesman Collects Details]   ------------------------------> (Same Flow)
+                (Customer Details, Model,
+                Planning, Next Follow-up)
+   |
+   v
+[Save Enquiry + Follow-up Date]
+   |
+   v
+[END]
+
+
+(PURCHASE / BOOKING FLOW)
+
+   |
+   v
+[Salesman Collects Customer KYC] (USER TYPE 1)
+   |
+   v
+[Select Vehicle Model & Color]
+   |
+   v
+[Vehicle In Stock?]
+   |----------------------|
+   |                      |
+  NO                     YES
+   |                      |
+   v                      v
+[Ask for Booking]     [Proceed Further]
+   |
+   v
+[Booking Confirm?]
+   |----------------------|
+   |                      |
+  NO                     YES
+   |                      |
+   v                      v
+[Cancel Process]     [Continue Process]
+   |                      |
+   v                      v
+ [END]              --------------------
+
+
+   |
+   v
+[Select Sales Type]
+   |-------------------------|
+   |                         |
+   v                         v
+[CASH]                  [FINANCE]
+   |                         |
+   v                         v
+[Proceed]           [Select Finance Company]
+                           |
+                           v
+                   [Select FINANCER] (USER TYPE 5)
+                           |
+                           v
+                 [Send Case to FINANCER for Approval]
+                           |
+                           v
+                 [FINANCER Fill Finance Details]
+                 (Finance Amount,
+                  Down Payment,
+                  Processing Fee (FN),
+                  Processing Fee (SR),
+                  Payout)
+                           |
+                           v
+                   [FINANCE Approved?]
+                     |-------------|
+                     |             |
+                    NO            YES
+                     |             |
+                     v             v
+              [Reject / Modify]  [Approved Finance]
+                     |
+                     v
+                   [END]
+
+
+   |
+   v
+[Old Vehicle Exchange?]
+   |----------------------|
+   |                      |
+  NO                     YES
+   |                      |
+   v                      v
+[Skip Exchange]   [Fill Exchange Details]
+                  (Vehicle Model,
+                   Make Year,
+                   Reg No,
+                   Desired Value)
+                        |
+                        v
+                [Select EXCHANGER] (USER TYPE 6)
+                        |
+                        v
+            [Send Exchange Case for Approval]
+                        |
+                        v
+              [EXCHANGER Accept Deal?]
+                |------------------|
+                |                  |
+               NO                 YES
+                |                  |
+                v                  v
+         [Exchange Rejected]  [Accept with/without value change]
+                |                  |
+                v                  v
+           [Continue Sale]     [Continue Sale]
+
+
+   |
+   v
+[Select Additional Items]
+(Insurance,
+ Registration,
+ Hypothecation if Finance,
+ Other State/District,
+ Extended Warranty,
+ Accessories,
+ Other Charges optional)
+   |
+   v
+[Discount Selection]
+   |
+   v
+[Normal Discount / Special Discount]
+   |
+   v
+[Special Discount?]
+   |----------------------|
+   |                      |
+  NO                     YES
+   |                      |
+   v                      v
+[Proceed Sale]    [Send to SUPER USER for Approval]
+                         (USER TYPE 3)
+                      |
+                      v
+              [Approved by SUPER USER?]
+                 |---------------|
+                 |               |
+                NO              YES
+                 |               |
+                 v               v
+         [Revise Discount]   [Proceed Sale]
+
+
+   |
+   v
+[ALL DETAILS OK -> PROCEED FOR SALE]
+   |
+   v
+-----------------------------------------------
+   NEXT PROCESS GOES TO OTHER USER TYPES
+-----------------------------------------------
+   |
+   v
+[Send to CASHIER] (USER TYPE 2)
+   |
+   v
+[CASHIER Collect Payment]
+(Payable Amount =
+ Total Value - Finance Amount - Exchange Amount)
+   |
+   v
+[CASHIER Issue MONEY RECEIPT]
+   |
+   v
+[CASHIER Approve TAX INVOICE]
+   |
+   v
+[CASHIER can STOP Insurance/Registration if dues]
+   |
+   v
+
+[Send to ACCESSORIES] (USER TYPE 4)
+   |
+   v
+[ACCESSORIES Issue Listed Accessories]
+   |
+   v
+
+[Send to PDI] (USER TYPE 3)
+   |
+   v
+[PDI Provide FRAME# / CHASSIS# of Vehicle]
+   |
+   v
+[Cashier Approved?]
+   |---------------------|
+   |                     |
+  NO                    YES
+   |                     |
+   v                     v
+[Hold Invoice]     [Generate TAX INVOICE]
+                         |
+                         v
+              [Tax Invoice given to Customer]
+                         |
+                         v
+                       [END]
